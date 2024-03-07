@@ -1,0 +1,28 @@
+---
+title: "Power Plant"
+author: "Maya Fujita"
+date: "2024-03-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(tidyverse)
+library(janitor)
+```
+
+```{r}
+powerplant <- read_csv("California_Power_Plants.csv")
+```
+
+```{r}
+glimpse(powerplant)
+```
+
+```{r}
+powerplant %>% 
+  filter(PriEnergySource=="NUC")
+```
+
