@@ -1,0 +1,139 @@
+---
+title: "Homeless Demographic, race and age"
+author: "Maya Fujita"
+date: "2024-03-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+getwd()
+```
+```{r}
+library(tidyverse)
+library(dplyr)
+library(janitor)
+library(ggplot2)
+```
+
+```{r}
+race <- read_csv("race.csv")
+race_homeless<- clean_names(race)
+```
+```{r}
+age <- read_csv("age.csv")
+age <- clean_names(age)
+```
+
+
+```{r}
+glimpse(race_homeless)
+```
+
+```{r}
+glimpse(age)
+```
+```{r}
+race_homeless %>% 
+  mutate(calendar_year=as.factor(calendar_year)) %>%
+  mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
+  group_by(calendar_year) %>% 
+  filter(experiencing_homelessness_cnt!="NA") %>% 
+  summarize(mean_num_homeless=mean(experiencing_homelessness_cnt))
+
+```
+
+```{r}
+race_homeless %>% 
+  mutate(calendar_year=as.factor(calendar_year)) %>%
+  mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
+  group_by(calendar_year) %>% 
+  filter(experiencing_homelessness_cnt!="NA") %>% 
+  summarize(mean_num_homeless=mean(experiencing_homelessness_cnt)) %>% 
+  ggplot(aes(x=calendar_year, y=mean_num_homeless))+
+  geom_col()+
+  labs(title = "Overall Average Number of Homeless from 2017-2023",
+       x="Year",
+       y="Average Number of Homeless Individuals")+
+  geom_smooth(method = lm, se=T, na.rm = T)
+
+```
+
+```{r}
+race_homeless %>% 
+  mutate(calendar_year=as.factor(calendar_year)) %>%
+  mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
+  filter(calendar_year=="2020"| calendar_year=="2021"|calendar_year=="2022"|calendar_year=="2023") %>% 
+  filter(experiencing_homelessness_cnt!="NA") %>% 
+  summarise(mean_covid_yrs=mean(experiencing_homelessness_cnt))
+
+```
+
+```{r}
+race_homeless %>% 
+  mutate(calendar_year=as.factor(calendar_year)) %>%
+  mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
+  filter(calendar_year=="2017"| calendar_year=="2018"|calendar_year=="2019") %>% 
+  filter(experiencing_homelessness_cnt!="NA") %>% 
+  summarise(mean_non_covid_yrs=mean(experiencing_homelessness_cnt))
+```
+
+```{r}
+race_homeless %>% 
+  
+  mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
+  filter(experiencing_homelessness_cnt!="NA") %>%
+  group_by(race) %>% 
+  summarize(mean_count=mean(experiencing_homelessness_cnt)) %>% 
+  arrange(-mean_count)
+  
+  
+
+```
+```{r}
+view(race_homeless)
+```
+
+```{r}
+race_homeless %>% 
+  mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
+  filter(experiencing_homelessness_cnt!="NA") %>%
+  filter(location=="Yolo County CoC") %>% 
+  group_by(race) %>% 
+  summarize(mean_count=mean(experiencing_homelessness_cnt)) %>% 
+  arrange(-mean_count)
+```
+```{r}
+race_homeless %>% 
+  filter(location=="Yolo County CoC"|location=="Alameda County CoC"|location=="Sonoma County CoC") %>% 
+  mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
+  filter(experiencing_homelessness_cnt!="NA") %>%
+  group_by(race,location) %>% 
+  summarize(mean_count=mean(experiencing_homelessness_cnt)) %>% 
+  arrange(-mean_count) %>% 
+  ggplot(aes(x=race,y=mean_count))+
+  geom_col()+
+  facet_wrap(.~location)#the side of .~ changes rows to columns
+
+```
+
+```{r}
+race_homeless %>% 
+  mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
+  filter(experiencing_homelessness_cnt!="NA") %>%
+  filter(location!="California") %>% 
+  group_by(location) %>%
+  select(location,race, experiencing_homelessness_cnt) %>% 
+  summarize(mean_count=mean(experiencing_homelessness_cnt)) %>% 
+  ggplot(aes(x=location,y=mean_count,fill(race)))+
+  geom_col()+
+  coord_flip()
+
+
+   
+  
+```
+
