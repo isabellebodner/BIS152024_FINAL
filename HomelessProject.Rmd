@@ -1,0 +1,80 @@
+---
+title: "Homeless Project"
+output: html_document
+date: "2024-03-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(naniar)
+library(ggplot2)
+```
+
+
+
+```{r}
+age <- read_csv("age.csv")
+race <- read_csv("race.csv")
+```
+
+```{r}
+glimpse(age)
+glimpse(race)
+```
+
+```{r}
+miss_var_summary(race)
+```
+
+
+#Getting an idea of total counts of individuals experiencing homelessness in each location every year recorded
+```{r}
+age %>% 
+  group_by(CALENDAR_YEAR, LOCATION) %>% 
+  mutate(EXPERIENCING_HOMELESSNESS_CNT=as.integer(EXPERIENCING_HOMELESSNESS_CNT)) %>% 
+  summarise(total_homeless=sum(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE)) %>% 
+  arrange(desc(total_homeless))
+```
+
+#Identifying hotspots by county for homeless individuals across all years recorded
+```{r}
+age %>% 
+  group_by(LOCATION) %>% 
+  filter(LOCATION!="California") %>% 
+  mutate(EXPERIENCING_HOMELESSNESS_CNT=as.integer(EXPERIENCING_HOMELESSNESS_CNT)) %>% 
+  summarise(total_homeless=sum(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE)) %>% 
+  arrange(desc(total_homeless))
+```
+
+#Identify homelessness by year (noting that individuals increased after COVID in 2020)
+```{r}
+age %>% 
+  group_by(CALENDAR_YEAR) %>% 
+  mutate(EXPERIENCING_HOMELESSNESS_CNT=as.integer(EXPERIENCING_HOMELESSNESS_CNT)) %>% 
+  summarise(total_homeless=sum(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE)) %>% 
+  arrange(desc(total_homeless))
+```
+
+```{r}
+age %>% 
+  group_by(CALENDAR_YEAR) %>% 
+  mutate(CALENDAR_YEAR=as.factor(CALENDAR_YEAR)) %>% 
+  mutate(EXPERIENCING_HOMELESSNESS_CNT=as.integer(EXPERIENCING_HOMELESSNESS_CNT)) %>% 
+  summarise(total_homeless=sum(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE)) %>% 
+  ggplot(aes(x=CALENDAR_YEAR, y=total_homeless))+ 
+  geom_col(color="black", fill="blue", alpha=0.6)+
+  labs(title = "Total Homeless Count 2017-2023",
+       x= "Year",
+       y= "Count")
+```
+
+```{r}
+merged <- merge(age, race, by = "LOCATION_ID")
+```
+
+
