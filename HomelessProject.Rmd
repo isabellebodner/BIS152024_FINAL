@@ -8,11 +8,18 @@ date: "2024-03-12"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+```{r}
+install.packages("shinydashboard")
+```
+
 ```{r}
 library(tidyverse)
 library(dplyr)
 library(naniar)
 library(ggplot2)
+library(shiny)
+library(shinydashboard)
 ```
 
 
@@ -70,11 +77,76 @@ age %>%
   geom_col(color="black", fill="blue", alpha=0.6)+
   labs(title = "Total Homeless Count 2017-2023",
        x= "Year",
-       y= "Count")
+       y= "Total Count")
+```
+```{r}
+class(age$AGE_GROUP_PUBLIC)
+table(age$AGE_GROUP_PUBLIC)
+```
+
+
+```{r}
+age_grouped <- age %>% 
+  filter(AGE_GROUP_PUBLIC!="Unkown") %>% 
+  mutate(age_group = case_when(
+    AGE_GROUP_PUBLIC == "Under 18" ~ "<18",
+    AGE_GROUP_PUBLIC == "18-24" ~ "18-24",
+    AGE_GROUP_PUBLIC == "25-34" ~ "25-34",
+    AGE_GROUP_PUBLIC == "35-44" ~ "35-44",
+    AGE_GROUP_PUBLIC == "45-54" ~ "45-54",
+    AGE_GROUP_PUBLIC == "55-64" ~ "55-64",
+    AGE_GROUP_PUBLIC == "65+" ~ ">65")) %>% 
+  filter(age_group!="NA")
+head(age_grouped)
 ```
 
 ```{r}
-merged <- merge(age, race, by = "LOCATION_ID")
+age_grouped %>% 
+  group_by(age_group) %>% 
+  mutate(EXPERIENCING_HOMELESSNESS_CNT=as.integer(EXPERIENCING_HOMELESSNESS_CNT)) %>% 
+  summarise(total_homeless=sum(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE)) %>% 
+  ggplot(aes(x=age_group, y=total_homeless))+
+  geom_col(color="black", fill="magenta", alpha=0.5)+
+  labs(title = "Total Homelessness by Age Group",
+       x= "Age Group",
+       y= "Total Count")
 ```
+
+```{r}
+age_grouped %>% 
+  filter(LOCATION!="California") %>% 
+  group_by(age_group, LOCATION) %>% 
+  mutate(EXPERIENCING_HOMELESSNESS_CNT=as.integer(EXPERIENCING_HOMELESSNESS_CNT)) %>% 
+  summarise(total_homeless=sum(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE),
+            average_homeless=mean(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE)) %>% 
+  arrange(desc(total_homeless)) %>% 
+  ggplot(aes(x=age_group, y=total_homeless))+
+  geom_col()+
+  facet_wrap(~LOCATION, scales = "free")
+```
+
+```{r}
+library(shiny)
+
+ui <- fluidPage(titlePanel("Age Group by Total Homeless Count Compared by County"),
+                selectInput("Age","Select Age Group", choices = c("<18","18-24","25-34","35-44","45-54","55-64",">65"),
+                            selected = "<18"),
+                selectInput("Statistics", "Select Total or Mean", choices = c("Total Count","Average Count"),
+                            selected = "Total Count"),
+                selectInput("County", "Select County", choices = unique($LOCATION))
+                plotOutput("plot", width = "500px", height = "400px")
+                            )
+  
+)
+
+server <- function(input, output, session) {
+  
+}
+
+shinyApp(ui, server)
+```
+
+
+
 
 
