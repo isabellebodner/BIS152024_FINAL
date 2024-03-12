@@ -17,6 +17,12 @@ library(tidyverse)
 library(dplyr)
 library(janitor)
 library(ggplot2)
+library(shiny)
+library(shinydashboard)
+library(palmerpenguins)
+```
+```{r}
+install.packages("shinydashboard")
 ```
 
 ```{r}
@@ -80,7 +86,7 @@ race_homeless %>%
   filter(experiencing_homelessness_cnt!="NA") %>% 
   summarise(mean_non_covid_yrs=mean(experiencing_homelessness_cnt))
 ```
-
+### Overall by race
 ```{r}
 race_homeless %>% 
   
@@ -96,7 +102,7 @@ race_homeless %>%
 ```{r}
 view(race_homeless)
 ```
-
+### Race by yolo county
 ```{r}
 race_homeless %>% 
   mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
@@ -116,7 +122,8 @@ race_homeless %>%
   arrange(-mean_count) %>% 
   ggplot(aes(x=race,y=mean_count))+
   geom_col()+
-  facet_wrap(.~location)#the side of .~ changes rows to columns
+  facet_wrap(.~location)+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))#the side of .~ changes rows to columns
 
 ```
 
@@ -125,15 +132,104 @@ race_homeless %>%
   mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
   filter(experiencing_homelessness_cnt!="NA") %>%
   filter(location!="California") %>% 
-  group_by(location) %>%
+  group_by(location, race) %>%
   select(location,race, experiencing_homelessness_cnt) %>% 
   summarize(mean_count=mean(experiencing_homelessness_cnt)) %>% 
-  ggplot(aes(x=location,y=mean_count,fill(race)))+
+  ggplot(aes(x=location,y=mean_count))+
   geom_col()+
-  coord_flip()
+  facet_grid(.~race)+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))#the side of .~ changes rows to columns
 
 
    
   
+```
+```{r}
+race_homeless %>% 
+  mutate(calendar_year=as.factor(calendar_year)) %>%
+  mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
+  filter(experiencing_homelessness_cnt!="NA") %>%
+  filter(location!="California") %>% 
+  filter(calendar_year=="2023") %>% 
+  filter(location!="Los Angeles County CoC") %>% 
+  group_by(location, race) %>% 
+  select(race, location, experiencing_homelessness_cnt) %>% 
+  summarize(mean_count=mean(experiencing_homelessness_cnt)) %>% 
+  ggplot(aes(x=location, y=mean_count, fill=race))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  
+```
+```{r}
+ui <- fluidPage(
+    selectInput("x", "Select X Variable", choices = c("calendar_year", "bill_depth_mm", "flipper_length_mm", "body_mass_g"),
+              selected = "bill_length_mm"),
+    selectInput("y", "Select Y Variable", choices = c("bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"),
+              selected = "bill_depth_mm"),
+    sliderInput("pointsize", "Select the Point Size", min = 0.5, max = 3, value = 1, step = 0.5),
+    plotOutput("plot", width = "500px", height = "400px")
+)
+
+server <- function(input, output, session) {
+  session$onSessionEnded(stopApp)
+  output$plot <- renderPlot({
+  ggplot(penguins, aes_string(x = input$x, y = input$y, color="species")) + 
+      geom_point(size=input$pointsize) + 
+      theme_light()
+    })
+}
+
+shinyApp(ui, server)
+```
+
+```{r}
+race_app <- race_homeless %>% 
+  mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
+  filter(experiencing_homelessness_cnt!="NA"|experiencing_homelessness_cnt!="*") %>% 
+  group_by(race, location, calendar_year) %>% 
+  summarize(total_count=sum(experiencing_homelessness_cnt),
+            average=mean(experiencing_homelessness_cnt))
+```
+
+```{r}
+
+
+# Define UI
+ui <- dashboardPage(
+  dashboardHeader(title = "Location and Race Breakdown 2017-2023"),
+  dashboardSidebar(
+    selectInput("race", "Select Race", choices = unique(race_app$race)),
+    selectInput("location", "Select Location", choices = unique(race_app$location)),
+    selectInput("y_axis", "Select Y-axis", choices = c("Total Count", "Average"))
+  ),
+  dashboardBody(
+    fluidRow(
+      box(plotOutput("barPlot"), width = 12)
+    )
+  )
+)
+
+# Define server
+server <- function(input, output) {
+  
+  # Filter data based on user input
+  filtered_data <- reactive({
+    race_app %>%
+      mutate(calendar_year=as.factor(calendar_year)) %>%
+      filter(race == input$race, location == input$location)
+  })
+  
+  # Create bar plot
+  output$barPlot <- renderPlot({
+    ggplot(filtered_data(), aes(x = calendar_year, y = if (input$y_axis == "Total Count") total_count else average))+
+      geom_col(color="black", fill="steelblue", alpha=0.75) +
+      labs(title = paste(input$y_axis, "for", input$race, "in", input$location),
+           x = "Year",
+           y = input$y_axis)
+  })
+}
+
+# Run the app
+shinyApp(ui, server)
 ```
 
