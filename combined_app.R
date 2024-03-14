@@ -1,3 +1,34 @@
+library(tidyverse)
+library(dplyr)
+library(janitor)
+library(ggplot2)
+library(shiny)
+library(shinydashboard)
+library(palmerpenguins)
+library(naniar)
+
+race <- read_csv("race.csv",na = c("NA", " ", "*"))
+race_homeless<- clean_names(race)
+
+age <- read_csv("age.csv")
+age <- clean_names(age)
+
+race_app <- race_homeless %>% 
+  mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
+  filter(experiencing_homelessness_cnt!="NA"|experiencing_homelessness_cnt!="*") %>% 
+  group_by(race, location, calendar_year) %>% 
+  summarize(total_count=sum(experiencing_homelessness_cnt),
+            average=mean(experiencing_homelessness_cnt))
+
+age_homeless <- clean_names(age_grouped)
+
+age_app <- age_homeless %>% 
+  mutate(experiencing_homelessness_cnt=as.numeric(experiencing_homelessness_cnt)) %>% 
+  filter(experiencing_homelessness_cnt!="NA"|experiencing_homelessness_cnt!="*") %>% 
+  group_by(age_group, location, calendar_year) %>% 
+  summarize(total_count=sum(experiencing_homelessness_cnt),
+            average=mean(experiencing_homelessness_cnt))
+
 ui <- dashboardPage(
   dashboardHeader(title = "Location-Race-Age Breakdown 2017-2023"),
   dashboardSidebar(
