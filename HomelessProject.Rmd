@@ -87,7 +87,7 @@ table(age$AGE_GROUP_PUBLIC)
 
 ```{r}
 age_grouped <- age %>% 
-  filter(AGE_GROUP_PUBLIC!="Unkown") %>% 
+  filter(AGE_GROUP_PUBLIC!="Unknown") %>% 
   mutate(age_group = case_when(
     AGE_GROUP_PUBLIC == "Under 18" ~ "<18",
     AGE_GROUP_PUBLIC == "18-24" ~ "18-24",
@@ -96,7 +96,7 @@ age_grouped <- age %>%
     AGE_GROUP_PUBLIC == "45-54" ~ "45-54",
     AGE_GROUP_PUBLIC == "55-64" ~ "55-64",
     AGE_GROUP_PUBLIC == "65+" ~ ">65")) %>% 
-  filter(age_group!="NA")
+  filter(!is.na(age_group))
 head(age_grouped)
 ```
 
@@ -105,11 +105,24 @@ age_grouped %>%
   group_by(age_group) %>% 
   mutate(EXPERIENCING_HOMELESSNESS_CNT=as.integer(EXPERIENCING_HOMELESSNESS_CNT)) %>% 
   summarise(total_homeless=sum(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE)) %>% 
+  mutate(age_group = factor(age_group, levels = c("<18", "18-24", "25-34", "35-44", "45-54", "55-64", ">65"))) %>%
+  arrange(desc(total_homeless))
+```
+
+
+
+```{r}
+age_grouped %>% 
+  group_by(age_group) %>% 
+  mutate(EXPERIENCING_HOMELESSNESS_CNT=as.integer(EXPERIENCING_HOMELESSNESS_CNT)) %>% 
+  summarise(total_homeless=sum(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE)) %>% 
+  mutate(age_group = factor(age_group, levels = c("<18", "18-24", "25-34", "35-44", "45-54", "55-64", ">65"))) %>%
   ggplot(aes(x=age_group, y=total_homeless))+
-  geom_col(color="black", fill="magenta", alpha=0.5)+
+  geom_col(color="black", fill="lightblue", alpha=0.75)+
   labs(title = "Total Homelessness by Age Group",
        x= "Age Group",
-       y= "Total Count")
+       y= "Total Count")+
+  scale_y_continuous(labels = scales::comma)
 ```
 
 ```{r}
@@ -126,7 +139,27 @@ age_grouped %>%
 ```
 
 ```{r}
-app <- age_grouped %>% 
+miss_var_summary(age_grouped)
+```
+```{r}
+age_grouped %>% 
+  filter(LOCATION=="Yolo County CoC") %>% 
+  group_by(age_group) %>% 
+  mutate(EXPERIENCING_HOMELESSNESS_CNT=as.integer(EXPERIENCING_HOMELESSNESS_CNT)) %>% 
+  summarise(mean_homeless=mean(EXPERIENCING_HOMELESSNESS_CNT, na.rm = T)) %>% 
+  mutate(age_group = factor(age_group, levels = c("<18", "18-24", "25-34", "35-44", "45-54", "55-64", ">65"))) %>%
+  ggplot(aes(x=age_group,y=mean_homeless))+
+  geom_col(color="black", fill="lightblue", alpha=0.75)+
+  coord_flip()+
+  labs(title = "Average Homeless Individuals in Yolo County Coc-Age Group",
+       x= "Age Group",
+       y= "Average Individuals that Received Care")
+  
+```
+
+
+```{r}
+age_grouped %>% 
   filter(LOCATION!="California") %>% 
   group_by(age_group, LOCATION) %>% 
   mutate(EXPERIENCING_HOMELESSNESS_CNT=as.integer(EXPERIENCING_HOMELESSNESS_CNT)) %>% 
@@ -134,41 +167,129 @@ app <- age_grouped %>%
             average_homeless=mean(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE)) %>% 
   arrange(desc(total_homeless))
 ```
+```{r}
+app <- age_grouped %>% 
+  filter(LOCATION!="California") %>% 
+  mutate(EXPERIENCING_HOMELESSNESS_CNT=as.integer(EXPERIENCING_HOMELESSNESS_CNT)) %>% 
+  filter(EXPERIENCING_HOMELESSNESS_CNT!="NA")
+```
 
 
 ```{r}
 library(shiny)
 
-ui <- fluidPage(titlePanel("Age Group by Total Homeless Count Compared by County"),
-                selectInput("Age","Select Age Group", choices = c("<18","18-24","25-34","35-44","45-54","55-64",">65"),
+ui <- fluidPage(
+  titlePanel("Age Group by Total Homeless Count Compared by County"),
+  selectInput("Age","Select Age Group", choices = c("<18","18-24","25-34","35-44","45-54","55-64",">65"),
                             selected = "<18"),
-                selectInput("Statistics", "Select Total or Mean", choices = c("Total Count","Average Count"),
+  selectInput("Statistics", "Select Total or Mean", choices = c("Total Count","Average Count"),
                             selected = "Total Count"),
-                selectInput("County", "Select County", choices = unique(age_grouped$LOCATION)),
-                plotOutput("plot", width = "500px", height = "400px")
+  selectInput("County", "Select County", choices = unique(app$LOCATION)),
+  plotOutput("plot", width = "500px", height = "400px")
                             )
   
 
 
 server <- function(input, output, session) {
-  
-
-    age_grouped %>% 
-      filter(LOCATION!="California") %>% 
-      mutate(EXPERIENCING_HOMELESSNESS_CNT=as.integer(EXPERIENCING_HOMELESSNESS_CNT)) %>%
+  filtered_data <- reactive({
+    filtered <- app %>% 
+      mutate(CALENDAR_YEAR=as.factor(CALENDAR_YEAR)) %>%
+      filter(LOCATION == input$County) %>%
+      filter(age_group == input$age_group) %>%
       summarise(total_homeless=sum(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE),
-                average_homeless=mean(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE)) %>%
+                average_homeless=mean(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE))
+    
+    if (input$Statistics == "Total Count") {
+      filtered <- filtered %>%
+        summarise(total_homeless = sum(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE))
+    } else {
+      filtered <- filtered %>%
+        summarise(average_homeless = mean(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE))
+    }
+    
+    filtered
+  })
      
     
     output$plot <- renderPlot({
-      ggplot(aes(x=age_group, y=total_homeless))+
-        geom_col()+
-        theme_light()
+      ggplot(filtered_data(), aes(x=age_group, y= ifelse(input$Statistics == "Total Count", total_homeless, average_homeless)))+
+        geom_col(color="black", fill="lightblue", alpha=0.75)
   
 })
 }
 shinyApp(ui, server)
 ```
+
+
+```{r}
+ui <- dashboardPage(
+  dashboardHeader("Age Group by Total Homeless Count Compared by County"),
+  dashboardSidebar(
+    selectInput("Age", "Select Age Group", choices = c("<18", "18-24", "25-34", "35-44", "45-54", "55-64", ">65"), selected = "<18"),
+    selectInput("Statistics", "Select Total or Mean", choices = c("Total Count", "Average Count"), selected = "Total Count"),
+    selectInput("County", "Select County", choices = unique(app$LOCATION))
+  ),
+  dashboardBody(
+    fluidRow(
+      box(plotOutput("barPlot"), width = 12))
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  filtered_data <- reactive({
+    filtered <- app %>%
+      filter(LOCATION == input$County) %>%
+      filter(age_group == input$Age) %>%
+      summarise(total_homeless = sum(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE),
+                average_homeless = mean(EXPERIENCING_HOMELESSNESS_CNT, na.rm = TRUE))
+    
+  })
+  
+  output$plot <- renderPlot({
+    ggplot(filtered_data(), aes(x = CALENDAR_YEAR, y = if (input$Statistics == "Total Count") total_homeless else average_homeless))+
+      geom_col(color = "black", fill = "lightblue", alpha = 0.75) +
+      labs(title = paste(input$y_axis, "for", input$Age, "in", input$COUNTY),
+           x = "Year",
+           y = input$Statistics)
+    
+  })
+}
+
+shinyApp(ui, server)
+
+
+```
+
+
+```{r}
+covid <- app %>% 
+  mutate(CALENDAR_YEAR=as.numeric(CALENDAR_YEAR)) %>% 
+  mutate(Covid = case_when(
+    CALENDAR_YEAR <= 2019 ~ "Pre-Covid",
+    CALENDAR_YEAR >= 2020 ~ "Covid"
+  ))
+
+```
+
+```{r}
+covid %>% 
+  group_by(Covid) %>% 
+  filter(LOCATION=="Los Angeles County CoC") %>% 
+  summarise(mean_homeless=mean(EXPERIENCING_HOMELESSNESS_CNT)) %>% 
+  ggplot(aes(x=Covid, y=mean_homeless))+
+  geom_col(color="black", fill="lightblue", alpha=0.75)+
+  labs(title = "Average Homelessness Before and During COVID-19 in Los Angeles County CoC",
+       x= "Covid Status",
+       y= "Average Homelessness")
+```
+
+
+
+
+
+
+
 
 
 
