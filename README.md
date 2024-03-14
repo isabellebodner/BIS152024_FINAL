@@ -12,6 +12,6 @@ We used data from the State of California, Continuum of Care to analyze the coun
 
 We each used a different R markdown file to do our data analysis, distinguished by our names, to show the different work we each contributed to the project.
 
-# Understanding our suppository:
+# Understanding our repository:
 
-We have two data sets, two individual apps, one combined app that just puts both of the previos apps in the same place, and our seperate code we used to complete the project.
+We have two data sets, an individual app titled race.app, one combined app that includes the app looking at race and the app looking at age groups into one, and our seperate code we wrote to complete the project.
