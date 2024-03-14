@@ -21,18 +21,23 @@ We each used a different R markdown file to do our data analysis, distinguished 
 # Understanding our repository:
 
 We have two data sets: 
+
 race.csv
 age.csv
 
 individual app: 
+
 race.app - Shiny App that investigates different races in different counties of California over time
 
 Final app: 
+
 combined.app - Shiny app that includes the previous app looking at race and the app looking at age groups into one
 
 Seperate Coding Work: 
+
 isabelle.Rmd
 maya-fujita-code.Rmd
 
 Presentation slides: 
+
 slides.
